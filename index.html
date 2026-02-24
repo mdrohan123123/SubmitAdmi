@@ -827,6 +827,31 @@
       background: var(--gray-100);
     }
 
+    .payment-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .payment-badge.rocket {
+      background: #ffedd5;
+      color: #9a3412;
+    }
+
+    .payment-badge.bkash {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .payment-badge.nagad {
+      background: #e0f2fe;
+      color: #075985;
+    }
+
     .token-badge {
       background: var(--gradient-1);
       color: white;
@@ -1283,6 +1308,37 @@
       </div>
     </div>
 
+    <!-- Payment Stats -->
+    <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+      <div class="stat-card">
+        <div class="stat-icon" style="background: #ffedd5; color: #9a3412;">
+          <i class="fas fa-rocket"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-label">রকেট</div>
+          <div class="stat-value" id="rocketCount">0</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background: #fee2e2; color: #991b1b;">
+          <i class="fas fa-bolt"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-label">বিকাশ</div>
+          <div class="stat-value" id="bkashCount">0</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background: #e0f2fe; color: #075985;">
+          <i class="fas fa-mobile-alt"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-label">নগদ</div>
+          <div class="stat-value" id="nagadCount">0</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Top Users -->
     <div class="top-users-grid">
       <div class="top-user-premium gold">
@@ -1336,13 +1392,14 @@
               <th>ইউজার টোকেন</th>
               <th>মোট সাবমিশন</th>
               <th>আজকের সাবমিশন</th>
+              <th>পেমেন্ট মেথড</th>
               <th>সর্বশেষ সাবমিশন</th>
               <th>অ্যাকশন</th>
             </tr>
           </thead>
           <tbody id="userStatsBody">
             <tr>
-              <td colspan="6" style="text-align: center; padding: 50px;">
+              <td colspan="7" style="text-align: center; padding: 50px;">
                 <i class="fas fa-spinner fa-spin" style="font-size: 30px; color: var(--primary);"></i>
                 <p style="margin-top: 15px; color: var(--gray-500);">ডাটা লোড হচ্ছে...</p>
               </td>
@@ -1384,13 +1441,15 @@
               <th>UID</th>
               <th>পাসওয়ার্ড</th>
               <th>2FA KEY</th>
+              <th>পেমেন্ট মেথড</th>
+              <th>পেমেন্ট নাম্বার</th>
               <th>ইউজার টোকেন</th>
               <th>তারিখ ও সময়</th>
             </tr>
           </thead>
           <tbody id="tableBody">
             <tr>
-              <td colspan="6" style="text-align: center; padding: 50px;">
+              <td colspan="8" style="text-align: center; padding: 50px;">
                 <i class="fas fa-spinner fa-spin" style="font-size: 30px; color: var(--primary);"></i>
                 <p style="margin-top: 15px; color: var(--gray-500);">ডাটা লোড হচ্ছে...</p>
               </td>
@@ -1467,6 +1526,9 @@
       const avgPerUser = document.getElementById('avgPerUser');
       const maxByUser = document.getElementById('maxByUser');
       const unknownUsers = document.getElementById('unknownUsers');
+      const rocketCount = document.getElementById('rocketCount');
+      const bkashCount = document.getElementById('bkashCount');
+      const nagadCount = document.getElementById('nagadCount');
       
       // Top Users Elements
       const top1Name = document.getElementById('top1Name');
@@ -1628,6 +1690,8 @@
               id,
               ...item,
               user_token: item.user_token || 'Unknown',
+              payment_method: item.payment_method || 'Unknown',
+              payment_number: item.payment_number || 'N/A',
               submitted_at: item.submitted_at || new Date().toISOString()
             })).sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
             
@@ -1641,8 +1705,8 @@
           } else {
             allData = [];
             userStats = {};
-            tableBody.innerHTML = '<tr><td colspan="6" class="no-data">📭 কোন ডাটা পাওয়া যায়নি</td></tr>';
-            userStatsBody.innerHTML = '<tr><td colspan="6" class="no-data">📭 কোন ডাটা পাওয়া যায়নি</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 50px;">📭 কোন ডাটা পাওয়া যায়নি</td></tr>';
+            userStatsBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 50px;">📭 কোন ডাটা পাওয়া যায়নি</td></tr>';
             resetStats();
           }
         });
@@ -1651,6 +1715,7 @@
       function calculateUserStats() {
         userStats = {};
         let unknownCount = 0;
+        let rocket = 0, bkash = 0, nagad = 0;
         
         allData.forEach(item => {
           const token = item.user_token || 'Unknown';
@@ -1659,6 +1724,8 @@
               total: 0,
               today: 0,
               lastSubmission: item.submitted_at,
+              paymentMethod: item.payment_method || 'Unknown',
+              paymentNumber: item.payment_number || 'N/A',
               submissions: []
             };
           }
@@ -1674,16 +1741,24 @@
           
           if (new Date(item.submitted_at) > new Date(userStats[token].lastSubmission)) {
             userStats[token].lastSubmission = item.submitted_at;
+            userStats[token].paymentMethod = item.payment_method || 'Unknown';
+            userStats[token].paymentNumber = item.payment_number || 'N/A';
           }
 
           if (token === 'Unknown') {
             unknownCount++;
           }
+
+          // Count payment methods
+          if (item.payment_method === 'rocket') rocket++;
+          else if (item.payment_method === 'bkash') bkash++;
+          else if (item.payment_method === 'nagad') nagad++;
         });
 
-        if (unknownUsers) {
-          unknownUsers.textContent = unknownCount;
-        }
+        if (unknownUsers) unknownUsers.textContent = unknownCount;
+        if (rocketCount) rocketCount.textContent = rocket;
+        if (bkashCount) bkashCount.textContent = bkash;
+        if (nagadCount) nagadCount.textContent = nagad;
       }
 
       function updateTopUsers() {
@@ -1735,6 +1810,9 @@
         avgPerUser.textContent = '0';
         maxByUser.textContent = '0';
         unknownUsers.textContent = '0';
+        if (rocketCount) rocketCount.textContent = '0';
+        if (bkashCount) bkashCount.textContent = '0';
+        if (nagadCount) nagadCount.textContent = '0';
       }
 
       function updateStats() {
@@ -1762,7 +1840,7 @@
 
       function renderUserStats() {
         if (Object.keys(userStats).length === 0) {
-          userStatsBody.innerHTML = '<tr><td colspan="6" class="no-data">📭 কোন ইউজার ডাটা নেই</td></tr>';
+          userStatsBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 50px;">📭 কোন ইউজার ডাটা নেই</td></tr>';
           return;
         }
         
@@ -1775,6 +1853,22 @@
             const lastDate = new Date(stats.lastSubmission);
             const formattedLast = `${lastDate.getDate()}/${lastDate.getMonth()+1} ${lastDate.getHours()}:${String(lastDate.getMinutes()).padStart(2,'0')}`;
             
+            let paymentClass = '';
+            let paymentIcon = '';
+            if (stats.paymentMethod === 'rocket') {
+              paymentClass = 'payment-badge rocket';
+              paymentIcon = '🚀';
+            } else if (stats.paymentMethod === 'bkash') {
+              paymentClass = 'payment-badge bkash';
+              paymentIcon = '💠';
+            } else if (stats.paymentMethod === 'nagad') {
+              paymentClass = 'payment-badge nagad';
+              paymentIcon = '🔷';
+            } else {
+              paymentClass = 'payment-badge';
+              paymentIcon = '❓';
+            }
+            
             html += `
               <tr>
                 <td>${index++}</td>
@@ -1785,6 +1879,11 @@
                 </td>
                 <td><span class="user-badge total">${stats.total}টি</span></td>
                 <td><span class="user-badge today">${stats.today}টি</span></td>
+                <td>
+                  <span class="${paymentClass}">
+                    ${paymentIcon} ${stats.paymentMethod === 'rocket' ? 'রকেট' : stats.paymentMethod === 'bkash' ? 'বিকাশ' : stats.paymentMethod === 'nagad' ? 'নগদ' : 'Unknown'}
+                  </span>
+                </td>
                 <td>${formattedLast}</td>
                 <td>
                   <button class="filter-btn" style="padding: 8px 15px;" onclick="filterByUser('${token}')">
@@ -1820,7 +1919,7 @@
         }
         
         if (filteredData.length === 0) {
-          tableBody.innerHTML = '<tr><td colspan="6" class="no-data">📭 কোন ডাটা পাওয়া যায়নি</td></tr>';
+          tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 50px;">📭 কোন ডাটা পাওয়া যায়নি</td></tr>';
           return;
         }
         
@@ -1829,12 +1928,36 @@
           const date = new Date(item.submitted_at);
           const formattedDate = `${date.getDate()}/${date.getMonth()+1}/${date.getFullYear()} ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
           
+          let paymentClass = '';
+          let paymentIcon = '';
+          let paymentText = 'Unknown';
+          
+          if (item.payment_method === 'rocket') {
+            paymentClass = 'payment-badge rocket';
+            paymentIcon = '🚀';
+            paymentText = 'রকেট';
+          } else if (item.payment_method === 'bkash') {
+            paymentClass = 'payment-badge bkash';
+            paymentIcon = '💠';
+            paymentText = 'বিকাশ';
+          } else if (item.payment_method === 'nagad') {
+            paymentClass = 'payment-badge nagad';
+            paymentIcon = '🔷';
+            paymentText = 'নগদ';
+          }
+          
           html += `
             <tr>
               <td>${index + 1}</td>
               <td><strong>${item.username || 'N/A'}</strong></td>
               <td>${item.password || 'N/A'}</td>
               <td>${item.fa_key || item.cookie_2fa || 'N/A'}</td>
+              <td>
+                <span class="${paymentClass}">
+                  ${paymentIcon} ${paymentText}
+                </span>
+              </td>
+              <td>${item.payment_number || 'N/A'}</td>
               <td><span class="token-badge ${!item.user_token || item.user_token === 'Unknown' ? 'unknown' : ''}">
                 ${!item.user_token || item.user_token === 'Unknown' ? '⚠️ Unknown' : item.user_token.substring(0, 15) + '...'}
               </span></td>
@@ -1935,15 +2058,26 @@
           return;
         }
         
-        const excelData = dataToExport.map(item => [
-          item.username || '',
-          item.password || '',
-          item.fa_key || item.cookie_2fa || '',
-          item.user_token || 'Unknown',
-          new Date(item.submitted_at).toLocaleString('bn-BD')
-        ]);
+        // Excel-এ পেমেন্ট তথ্য যোগ করা হয়েছে
+        const excelData = dataToExport.map(item => {
+          let paymentMethodText = '';
+          if (item.payment_method === 'rocket') paymentMethodText = 'রকেট';
+          else if (item.payment_method === 'bkash') paymentMethodText = 'বিকাশ';
+          else if (item.payment_method === 'nagad') paymentMethodText = 'নগদ';
+          else paymentMethodText = 'Unknown';
+          
+          return [
+            item.username || '',
+            item.password || '',
+            item.fa_key || item.cookie_2fa || '',
+            paymentMethodText,
+            item.payment_number || 'N/A',
+            item.user_token || 'Unknown',
+            new Date(item.submitted_at).toLocaleString('bn-BD')
+          ];
+        });
         
-        excelData.unshift(['UID', 'পাসওয়ার্ড', '2FA KEY', 'ইউজার টোকেন', 'সাবমিশন সময়']);
+        excelData.unshift(['UID', 'পাসওয়ার্ড', '2FA KEY', 'পেমেন্ট মেথড', 'পেমেন্ট নাম্বার', 'ইউজার টোকেন', 'সাবমিশন সময়']);
         
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.aoa_to_sheet(excelData);
@@ -1965,14 +2099,25 @@
           return;
         }
         
-        const excelData = Object.entries(userStats).map(([token, stats]) => [
-          token,
-          stats.total,
-          stats.today,
-          new Date(stats.lastSubmission).toLocaleString('bn-BD')
-        ]);
+        // ইউজার স্ট্যাটসে পেমেন্ট তথ্য যোগ করা হয়েছে
+        const excelData = Object.entries(userStats).map(([token, stats]) => {
+          let paymentMethodText = '';
+          if (stats.paymentMethod === 'rocket') paymentMethodText = 'রকেট';
+          else if (stats.paymentMethod === 'bkash') paymentMethodText = 'বিকাশ';
+          else if (stats.paymentMethod === 'nagad') paymentMethodText = 'নগদ';
+          else paymentMethodText = 'Unknown';
+          
+          return [
+            token,
+            stats.total,
+            stats.today,
+            paymentMethodText,
+            stats.paymentNumber,
+            new Date(stats.lastSubmission).toLocaleString('bn-BD')
+          ];
+        });
         
-        excelData.unshift(['ইউজার টোকেন', 'মোট সাবমিশন', 'আজকের সাবমিশন', 'সর্বশেষ সাবমিশন']);
+        excelData.unshift(['ইউজার টোকেন', 'মোট সাবমিশন', 'আজকের সাবমিশন', 'পেমেন্ট মেথড', 'পেমেন্ট নাম্বার', 'সর্বশেষ সাবমিশন']);
         
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.aoa_to_sheet(excelData);
